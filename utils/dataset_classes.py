@@ -8,16 +8,16 @@ class StandardDataModule(pl.LightningDataModule):
     train, valid and test sets are available.
     """
 
-    def __init__(self, train_set_idx, entities_idx, relations_idx, times_idx, batch_size, form,
+    def __init__(self, train_set_idx, entities_count, relations_count, times_count, batch_size, form,
                  num_workers=32, valid_set_idx=None, test_set_idx=None, neg_sample_ratio=None):
         super().__init__()
         self.train_set_idx = train_set_idx
         self.valid_set_idx = valid_set_idx
         self.test_set_idx = test_set_idx
 
-        self.entities_idx = entities_idx
-        self.relations_idx = relations_idx
-        self.times_idx = times_idx
+        self.num_entities = entities_count
+        self.num_relations = relations_count
+        self.num_times = times_count
 
         self.form = form
         # self.batch_size = batch_size
@@ -35,9 +35,9 @@ class StandardDataModule(pl.LightningDataModule):
         if self.form == 'FactChecking':
             self.batch_size = batch_size1
             train_set = FactCheckingDataset(self.train_set_idx,
-                                            num_entities=len(self.entities_idx),
-                                            num_relations=len(self.relations_idx),
-                                            num_times=len(self.times_idx))
+                                            num_entities=(self.num_entities),
+                                            num_relations=(self.num_relations),
+                                            num_times=(self.num_times))
             return DataLoader(train_set, batch_size=self.batch_size, shuffle=True,num_workers=self.num_workers)
 
     def val_dataloader(self, batch_size1) -> DataLoader:
@@ -45,19 +45,19 @@ class StandardDataModule(pl.LightningDataModule):
         if self.form == 'FactChecking':
             self.batch_size = batch_size1
             val_set = FactCheckingDataset(self.valid_set_idx,
-                                            num_entities=len(self.entities_idx),
-                                            num_relations=len(self.relations_idx),
-                                            num_times=len(self.times_idx))
-            return DataLoader(val_set, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
+                                            num_entities=(self.num_entities),
+                                            num_relations=(self.num_relations),
+                                            num_times=(self.num_times))
+            return DataLoader(val_set, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
 
 
     def dataloaders(self, batch_size1) -> DataLoader:
         if self.form == 'FactChecking':
             test_set = FactCheckingDataset(self.test_set_idx,
-                                               num_entities=len(self.entities_idx),
-                                               num_relations=len(self.relations_idx),
-                                               num_times=len(self.times_idx))
+                                               num_entities=(self.num_entities),
+                                               num_relations=(self.num_relations),
+                                               num_times=(self.num_times))
             return DataLoader(test_set, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
 

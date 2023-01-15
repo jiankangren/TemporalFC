@@ -6,184 +6,226 @@ import pickle
 import torch
 import os
 import random
-# from main import argparse_default
-
-# seed_everything(42, workers=True)
-
 class Data:
     def __init__(self, args=None):
         data_dir = args.path_dataset_folder
         emb_typ = args.emb_type
         selected_dataset_data_dir = data_dir+str(args.eval_dataset).lower()+"/"
         tmp_emb_folder = data_dir + str(args.eval_dataset).lower()+"/temporal_embeddings/"
+        property_split = args.prop
+        if args.eval_dataset == "Yago3K":
+            args.ids_only = True
+        ids_only = args.ids_only
         # Quick workaround as we happen to have duplicate triples.
         # None if load complete data, otherwise load parts of dataset with folders in wrong directory.
         # emb_folder = ""
-        mapped_entities =  self.get_mapped_entities(selected_dataset_data_dir,file_name="map_final")
-        if str(args.eval_dataset).lower().__contains__("dbpedia34k"): #bpdp_dataset == True:
-            self.train_set = list((self.load_data(selected_dataset_data_dir+"train/" , data_type="train")))
-            self.test_set = list((self.load_data(selected_dataset_data_dir+"test/" , data_type="test")))
-            self.train_set_time = list((self.load_data_with_time(selected_dataset_data_dir + "train/", data_type="train_original", mapped_entities =  mapped_entities)))
-            self.test_set_time = list((self.load_data_with_time(selected_dataset_data_dir + "test/", data_type="test_original", mapped_entities =  mapped_entities)))
-            self.train_set_time_final = self.update_and_match_triples_start(self,selected_dataset_data_dir,"train","train_with_time_final.txt",
-                                                                            self.train_set, self.train_set_time)
-            self.test_set_time_final = self.update_and_match_triples_start(self,selected_dataset_data_dir,"test","test_with_time_final.txt",
-                                                                           self.test_set, self.test_set_time)
+        if ids_only == False:
+            if str(args.eval_dataset).lower().__contains__("dbpedia34k"):
+                mapped_entities =  self.get_mapped_entities(selected_dataset_data_dir,file_name="map_final")
+            if str(args.eval_dataset).lower().__contains__("dbpedia34k") and property_split != "None":
+                self.train_set = list((self.load_data(selected_dataset_data_dir + "train/properties/correct/", data_type=property_split)))
+                self.test_set = list((self.load_data(selected_dataset_data_dir + "test/properties/correct/", data_type=property_split)))
+                self.train_set_time = list((self.load_data_with_time(selected_dataset_data_dir + "train/", data_type="train_original", mapped_entities=mapped_entities,prop=property_split)))
+                self.test_set_time = list((self.load_data_with_time(selected_dataset_data_dir + "test/", data_type="test_original", mapped_entities=mapped_entities,prop=property_split)))
+                self.train_set_time_final = self.update_and_match_triples_start(self, selected_dataset_data_dir, "train", "properties/correct/"+property_split+"_train_with_time_final.txt",
+                                                                                self.train_set, self.train_set_time)
+                self.test_set_time_final = self.update_and_match_triples_start(self, selected_dataset_data_dir, "test", "properties/correct/"+property_split+"_test_with_time_final.txt",
+                                                                               self.test_set, self.test_set_time)
+            elif str(args.eval_dataset).lower().__contains__("dbpedia34k"): #bpdp_dataset == True:
+                self.train_set = list((self.load_data(selected_dataset_data_dir+"train/" , data_type="train")))
+                self.test_set = list((self.load_data(selected_dataset_data_dir+"test/" , data_type="test")))
+                self.train_set_time = list((self.load_data_with_time(selected_dataset_data_dir + "train/", data_type="train_original", mapped_entities =  mapped_entities)))
+                self.test_set_time = list((self.load_data_with_time(selected_dataset_data_dir + "test/", data_type="test_original", mapped_entities =  mapped_entities)))
+                self.train_set_time_final = self.update_and_match_triples_start(self,selected_dataset_data_dir,"train","train_with_time_final.txt",
+                                                                                self.train_set, self.train_set_time)
+                self.test_set_time_final = self.update_and_match_triples_start(self,selected_dataset_data_dir,"test","test_with_time_final.txt",
+                                                                               self.test_set, self.test_set_time)
+            elif str(args.eval_dataset).lower().__contains__("dbpedia5") or str(args.eval_dataset).lower().__contains__("yago3k"):
+                self.train_set = list((self.load_data(selected_dataset_data_dir + "train/", data_type="train")))
+                self.test_set = list((self.load_data(selected_dataset_data_dir + "test/", data_type="test")))
+                self.train_set_time = list((self.load_data_with_time(selected_dataset_data_dir + "train/", data_type="train_original")))
+                self.test_set_time = list((self.load_data_with_time(selected_dataset_data_dir + "test/", data_type="test_original")))
+                self.train_set_time_final = self.update_and_match_triples_start(self, selected_dataset_data_dir, "train", "train_with_time_final.txt",
+                                                                                self.train_set, self.train_set_time)
+                self.test_set_time_final = self.update_and_match_triples_start(self, selected_dataset_data_dir, "test", "test_with_time_final.txt",
+                                                                               self.test_set, self.test_set_time)
+
+            else:
+                print("please specify a valid dataset")
+                exit(1)
+
+            split = "" if (property_split == 'None') else "correct/"+property_split
+            # factcheck predictions on train and test data
+            if str(args.eval_dataset).lower().__contains__("dbpedia34k") and property_split != "None":
+                self.train_set_veracity = list(
+                    (self.load_data(selected_dataset_data_dir + "factcheck_veracity_scores/properties/train/" + split, data_type="", pred=True)))
+                self.test_set_pred = list(
+                    (self.load_data(selected_dataset_data_dir + "factcheck_veracity_scores/properties/test/" + split, data_type="", pred=True)))
+            elif str(args.eval_dataset).lower().__contains__("dbpedia34k"):
+                self.train_set_veracity = list(
+                    (self.load_data(selected_dataset_data_dir+"factcheck_veracity_scores/"+split, data_type="train_pred", pred=True)))
+                self.test_set_pred = list(
+                    (self.load_data(selected_dataset_data_dir+"factcheck_veracity_scores/"+split, data_type="test_pred", pred=True)))
+
+            # self.train_set_time_final = self.update_and_match_triples_start(self,selected_dataset_data_dir,"train","train_with_time_final",self.train_set, self.train_set_time)
+            if args.include_veracity == True:
+                self.train_set_pred_final = self.update_and_match_triples_start(self,selected_dataset_data_dir,"factcheck_veracity_scores","final_train_pred.txt",
+                                                                                self.train_set_veracity, self.train_set_time, properties_split = property_split,veracity=True)
+                self.test_set_pred_final = self.update_and_match_triples_start(self,selected_dataset_data_dir,"factcheck_veracity_scores","final_test_pred.txt",
+                                                                               self.test_set_pred, self.test_set_time, properties_split = property_split, veracity=True)
+                # second time updating time array so no need to swap the sub and objects for negative triples(they are already inside), so veracity = true is fine
+                self.train_set_time_final = self.update_match_triples(data_set1=self.train_set_time_final, data_set2=self.train_set_pred_final, veracity=True, final=True)
+                self.test_set_time_final = self.update_match_triples(data_set1=self.test_set_time_final, data_set2=self.test_set_pred_final, veracity=True, final=True)
+                # check if prediction results and the train and test files are not equal size because we  have to check based on index the veracity scores (opposite check?)
+                self.train_set_pred_final = self.check_if_not_equal_size(self.train_set_pred_final,self.train_set_time_final )
+                self.test_set_pred_final = self.check_if_not_equal_size(self.test_set_pred_final, self.test_set_time_final)
+            # generate test and validation sets
+            self.test_set, self.valid_set = self.generate_test_valid_set(self, self.test_set)
+            self.test_set_time_final, self.valid_set_time_final = self.generate_test_valid_set(self, self.test_set_time_final)
+
+            if args.include_veracity == True:
+                self.test_set_pred, self.valid_set_pred = self.generate_test_valid_set(self, self.test_set_pred)
+                self.test_set_pred_final, self.valid_set_pred_final = self.generate_test_valid_set(self, self.test_set_pred_final)
+
+            # get all entities and relations
+            # self.data = self.train_set + list(self.test_set) + list(self.valid_set)
+            self.data = self.train_set_time + self.test_set_time
+            self.entities = self.get_entities(self.data)
+
+                   # self.relations = list(set(self.get_relations(self.train_set) + self.get_relations(self.test_set)))
+            self.relations = self.get_relations(self.data)
+            self.times = self.get_times(self.data)
+
+            self.idx_ent_dict = dict()
+            self.idx_rel_dict = dict()
+            self.idx_time_dict = dict()
+
+            # Generate integer mapping
+            for i in self.entities:
+                self.idx_ent_dict[i.replace("<http://dbpedia.org/resource/", "")[:-1]] = len(self.idx_ent_dict)
+            for i in self.relations:
+                self.idx_rel_dict[i.replace("<http://dbpedia.org/ontology/", "")[:-1]] = len(self.idx_rel_dict)
+            for i in self.times:
+                self.idx_time_dict[i] = len(self.idx_time_dict)
+
+            if args.include_veracity == True:
+                self.veracity_train = self.get_veracity_data(self, self.train_set_pred_final)
+                self.veracity_test = self.get_veracity_data(self, self.test_set_pred_final)
+                self.veracity_valid = self.get_veracity_data(self, self.valid_set_pred_final)
+
+
+            self.emb_entities = self.get_embeddings(tmp_emb_folder+emb_typ+'/','entity.pkl')
+            self.emb_relation = self.get_embeddings(tmp_emb_folder+emb_typ+'/','relation.pkl')
+            self.emb_time = self.get_embeddings(tmp_emb_folder+emb_typ+'/','time.pkl')
+
+            self.num_entities = len(self.emb_entities)
+            self.num_relations = len(self.emb_relation)
+            self.num_times = len(self.emb_time)
+
+            if args.negative_triple_generation =="corrupted-time-based":
+                self.train_set_time_final = self.generate_negative_triples(self.train_set_time_final)
+                self.valid_set_time_final = self.generate_negative_triples(self.valid_set_time_final)
+                self.test_set_time_final = self.generate_negative_triples(self.test_set_time_final)
+            elif args.negative_triple_generation == "False":
+                self.train_set_time_final = self.generate_only_true_triples(self.train_set_time_final)
+                self.valid_set_time_final = self.generate_only_true_triples(self.valid_set_time_final)
+                self.test_set_time_final = self.generate_only_true_triples(self.test_set_time_final)
+            self.idx_train_set = []
+            i = 0
+            len_train = len(self.train_set_time_final)
+            for (s, p, o, time, label) in self.train_set_time_final:
+                s = str(s).replace("<http://dbpedia.org/resource/", "")[:-1]
+                p = str(p).replace("<http://dbpedia.org/ontology/", "")[:-1].replace("Of","")
+                o = str(o).replace("<http://dbpedia.org/resource/", "")[:-1]
+                if self.idx_ent_dict.keys().__contains__(s) and self.idx_rel_dict.keys().__contains__(p) and self.idx_ent_dict.keys().__contains__(o):
+                    idx_s, idx_p, idx_o, idx_t, label = self.idx_ent_dict[s], self.idx_rel_dict[p], self.idx_ent_dict[o], self.idx_time_dict[time], label
+                    if label == 'True':
+                        label = 1
+                    else:
+                        label = 0
+                    ver = i
+                    #     this is to just to make sure if any time is not the same even after randomaly shuffling so increment by 1
+                    if args.negative_triple_generation =="corrupted-time-based" and (i >= int(len_train/2)):
+                        item = self.idx_train_set.__getitem__(i-int(len_train/2))
+                        if ((item[0] != int(idx_s)) or (item[1] != int(idx_p)) or (item[2]!=int(idx_o))):
+                            print("serious problem, please check")
+                            exit(1)
+                        if ((item[0]==int(idx_s)) and (item[1]==int(idx_p)) and (item[2]==int(idx_o)) and (item[3]==int(idx_t))):
+                            idx_t = (int(idx_t) + 1) if ((int(idx_t)+1) < self.num_times) else 0
+                        ver = item[4]
+                    self.idx_train_set.append([int(idx_s), int(idx_p), int(idx_o),int(idx_t), ver, label])
+                else:
+                    print("check:"+s + ","+o)
+                i = i + 1
+
+            self.idx_valid_set = []
+            j = 0
+            len_valid = len(self.valid_set_time_final)
+            for (s, p, o, time, label) in self.valid_set_time_final:
+                s = str(s).replace("<http://dbpedia.org/resource/", "")[:-1]
+                p = str(p).replace("<http://dbpedia.org/ontology/", "")[:-1].replace("Of","")
+                o = str(o).replace("<http://dbpedia.org/resource/", "")[:-1]
+                if self.idx_ent_dict.keys().__contains__(s) and  self.idx_rel_dict.keys().__contains__(p) and self.idx_ent_dict.keys().__contains__(o):
+                    idx_s, idx_p, idx_o, idx_t, label = self.idx_ent_dict[s], self.idx_rel_dict[p], self.idx_ent_dict[o],self.idx_time_dict[time], label
+                    if label == 'True':
+                        label = 1
+                    else:
+                        label = 0
+                    ver = j
+                    #     this is to check if any time is same even after randomaly shuffling so increment by 1
+                    if args.negative_triple_generation =="corrupted-time-based" and (j >= int(len_valid/2)):
+                        item = self.idx_valid_set.__getitem__(j-int(len_valid/2))
+                        if ((item[0] != int(idx_s)) or (item[1] != int(idx_p)) or (item[2]!=int(idx_o))):
+                            print("serious problem, please check")
+                            exit(1)
+                        if ((item[0]==int(idx_s)) and (item[1]==int(idx_p)) and (item[2]==int(idx_o)) and (item[3]==int(idx_t))):
+                            idx_t = (int(idx_t) + 1) if ((int(idx_t)+1) < self.num_times) else 0
+                        ver = item[4]
+                    self.idx_valid_set.append([int(idx_s), int(idx_p), int(idx_o),int(idx_t), ver, label])
+                else:
+                    print("check:" + s + "," + o)
+                j = j + 1
+
+            self.idx_test_set = []
+            k = 0
+            len_test = len(self.test_set_time_final)
+            for (s, p, o, time, label) in self.test_set_time_final:
+                s = str(s).replace("<http://dbpedia.org/resource/", "")[:-1]
+                p = str(p).replace("<http://dbpedia.org/ontology/", "")[:-1].replace("Of","")
+                o = str(o).replace("<http://dbpedia.org/resource/", "")[:-1]
+                if self.idx_ent_dict.keys().__contains__(s) and  self.idx_rel_dict.keys().__contains__(p) and self.idx_ent_dict.keys().__contains__(o):
+                    idx_s, idx_p, idx_o, idx_t, label = self.idx_ent_dict[s], self.idx_rel_dict[p], self.idx_ent_dict[o],self.idx_time_dict[time], label
+                    if label == 'True':
+                        label = 1
+                    else:
+                        label = 0
+                    ver = k
+                    #     this is to check if any time is same even after randomaly shuffling so increment by 1
+                    if args.negative_triple_generation =="corrupted-time-based" and (k >= int(len_test/2)):
+                        item = self.idx_test_set.__getitem__(k-int(len_test/2))
+                        if ((item[0] != int(idx_s)) or (item[1] != int(idx_p)) or (item[2]!=int(idx_o))):
+                            print("serious problem, please check")
+                            exit(1)
+                        if ((item[0]==int(idx_s)) and (item[1]==int(idx_p)) and (item[2]==int(idx_o)) and (item[3]==int(idx_t))):
+                            idx_t = (int(idx_t) + 1) if ((int(idx_t)+1) < self.num_times) else 0
+                        ver = item[4]
+                    self.idx_test_set.append([int(idx_s), int(idx_p), int(idx_o),int(idx_t), ver, label])
+                else:
+                    print("check:" + s + "," + o)
+                k = k + 1
         else:
-            print("please specify an available dataset")
-            exit(1)
-
-        # factcheck predictions on train and test data
-        if str(args.eval_dataset).lower().__contains__("dbpedia34k"):
-            self.train_set_veracity = list(
-                (self.load_data(selected_dataset_data_dir+"factcheck_veracity_scores/", data_type="train_pred", pred=True)))
-            self.test_set_pred = list(
-                (self.load_data(selected_dataset_data_dir+"factcheck_veracity_scores/", data_type="test_pred", pred=True)))
-
-        # self.train_set_time_final = self.update_and_match_triples_start(self,selected_dataset_data_dir,"train","train_with_time_final",self.train_set, self.train_set_time)
-
-        self.train_set_pred_final = self.update_and_match_triples_start(self,selected_dataset_data_dir,"factcheck_veracity_scores","final_train_pred.txt",
-                                                                        self.train_set_veracity, self.train_set_time, veracity=True)
-        self.test_set_pred_final = self.update_and_match_triples_start(self,selected_dataset_data_dir,"factcheck_veracity_scores","final_test_pred.txt",
-                                                                       self.test_set_pred, self.test_set_time, veracity=True)
-        # second time updating time array so no need to swap the sub and objects for negative triples(they are already inside), so veracity = true is fine
-        self.train_set_time_final = self.update_match_triples(data_set1=self.train_set_time_final, data_set2=self.train_set_pred_final, veracity=True, final=True)
-        self.test_set_time_final = self.update_match_triples(data_set1=self.test_set_time_final, data_set2=self.test_set_pred_final, veracity=True, final=True)
-        # check if prediction results and the train and test files are not equal size because we  have to check based on index the veracity scores (opposite check?)
-        self.train_set_pred_final = self.check_if_not_equal_size(self.train_set_pred_final,self.train_set_time_final )
-        self.test_set_pred_final = self.check_if_not_equal_size(self.test_set_pred_final, self.test_set_time_final)
-        # generate test and validation sets
-        self.test_set, self.valid_set = self.generate_test_valid_set(self, self.test_set)
-        self.test_set_time_final, self.valid_set_time_final = self.generate_test_valid_set(self, self.test_set_time_final)
-
-        self.test_set_pred, self.valid_set_pred = self.generate_test_valid_set(self, self.test_set_pred)
-        self.test_set_pred_final, self.valid_set_pred_final = self.generate_test_valid_set(self, self.test_set_pred_final)
-
-        # get all entities and relations
-        # self.data = self.train_set + list(self.test_set) + list(self.valid_set)
-        self.data = self.train_set_time + self.test_set_time
-        self.entities = self.get_entities(self.data)
-
-               # self.relations = list(set(self.get_relations(self.train_set) + self.get_relations(self.test_set)))
-        self.relations = self.get_relations(self.data)
-        self.times = self.get_times(self.data)
-
-
-
-
-        # self.idx_entities = dict()
-        # self.idx_relations = dict()
-        #
-        # # Generate integer mapping
-        # for i in self.entities:
-        #     self.idx_entities[i] = len(self.idx_entities)
-        # for i in self.relations:
-        #     self.idx_relations[i] = len(self.idx_relations)
-        self.veracity_train = self.get_veracity_data(self, self.train_set_pred_final)
-        self.veracity_test = self.get_veracity_data(self, self.test_set_pred_final)
-        self.veracity_valid = self.get_veracity_data(self, self.valid_set_pred_final)
-
-        self.idx_ent_dict = self.get_ids_dict(selected_dataset_data_dir+"entities")
-        self.idx_rel_dict = self.get_ids_dict(selected_dataset_data_dir+"relations")
-        self.idx_time_dict = self.get_ids_dict(selected_dataset_data_dir+"times")
-
-        self.emb_entities = self.get_embeddings(self.idx_ent_dict,tmp_emb_folder+emb_typ+'/','entity.pkl')
-        self.emb_relation = self.get_embeddings(self.idx_rel_dict,tmp_emb_folder+emb_typ+'/','relation.pkl')
-        self.emb_time = self.get_embeddings(self.idx_time_dict,tmp_emb_folder+emb_typ+'/','location.pkl')
-
-        self.num_entities = len(self.emb_entities)
-        self.num_relations = len(self.emb_relation)
-        self.num_times = len(self.emb_time)
-
-        if args.negative_triple_generation =="corrupted-time-based":
-            self.train_set_time_final = self.generate_negative_triples(self.train_set_time_final)
-            self.valid_set_time_final = self.generate_negative_triples(self.valid_set_time_final)
-            self.test_set_time_final = self.generate_negative_triples(self.test_set_time_final)
-
-        self.idx_train_set = []
-        i = 0
-        len_train = len(self.train_set_time_final)
-        for (s, p, o, time, label) in self.train_set_time_final:
-            s = str(s).replace("<http://dbpedia.org/resource/", "")[:-1]
-            p = str(p).replace("<http://dbpedia.org/ontology/", "")[:-1]
-            o = str(o).replace("<http://dbpedia.org/resource/", "")[:-1]
-            if self.idx_ent_dict.keys().__contains__(s) and self.idx_ent_dict.keys().__contains__(o):
-                idx_s, idx_p, idx_o, idx_t, label = self.idx_ent_dict[s], self.idx_rel_dict[p+"Of"], self.idx_ent_dict[o], self.idx_time_dict[time], label
-                if label == 'True':
-                    label = 1
-                else:
-                    label = 0
-                ver = i
-                #     this is to check if any time is same even after randomaly shuffling so increment by 1
-                if args.negative_triple_generation =="corrupted-time-based" and (i >= int(len_train/2)):
-                    item = self.idx_train_set.__getitem__(i-int(len_train/2))
-                    if ((item[0] != int(idx_s)) or (item[1] != int(idx_p)) or (item[2]!=int(idx_o))):
-                        print("serious problem, please check")
-                        exit(1)
-                    if ((item[0]==int(idx_s)) and (item[1]==int(idx_p)) and (item[2]==int(idx_o)) and (item[3]==int(idx_t))):
-                        idx_t = (int(idx_t) + 1) if ((int(idx_t)+1) < self.num_times) else 0
-                    ver = item[4]
-                self.idx_train_set.append([int(idx_s), int(idx_p), int(idx_o),int(idx_t), ver, label])
-            else:
-                print("check:"+s + ","+o)
-            i = i + 1
-
-        self.idx_valid_set = []
-        j = 0
-        len_valid = len(self.valid_set_time_final)
-        for (s, p, o, time, label) in self.valid_set_time_final:
-            s = str(s).replace("<http://dbpedia.org/resource/", "")[:-1]
-            p = str(p).replace("<http://dbpedia.org/ontology/", "")[:-1]
-            o = str(o).replace("<http://dbpedia.org/resource/", "")[:-1]
-            if self.idx_ent_dict.keys().__contains__(s) and self.idx_ent_dict.keys().__contains__(o):
-                idx_s, idx_p, idx_o, idx_t, label = self.idx_ent_dict[s], self.idx_rel_dict[p+"Of"], self.idx_ent_dict[o],self.idx_time_dict[time], label
-                if label == 'True':
-                    label = 1
-                else:
-                    label = 0
-                ver = j
-                #     this is to check if any time is same even after randomaly shuffling so increment by 1
-                if args.negative_triple_generation =="corrupted-time-based" and (j >= int(len_valid/2)):
-                    item = self.idx_valid_set.__getitem__(j-int(len_valid/2))
-                    if ((item[0] != int(idx_s)) or (item[1] != int(idx_p)) or (item[2]!=int(idx_o))):
-                        print("serious problem, please check")
-                        exit(1)
-                    if ((item[0]==int(idx_s)) and (item[1]==int(idx_p)) and (item[2]==int(idx_o)) and (item[3]==int(idx_t))):
-                        idx_t = (int(idx_t) + 1) if ((int(idx_t)+1) < self.num_times) else 0
-                    ver = item[4]
-                self.idx_valid_set.append([int(idx_s), int(idx_p), int(idx_o),int(idx_t), ver, label])
-            else:
-                print("check:" + s + "," + o)
-            j = j + 1
-
-        self.idx_test_set = []
-        k = 0
-        len_test = len(self.test_set_time_final)
-        for (s, p, o, time, label) in self.test_set_time_final:
-            s = str(s).replace("<http://dbpedia.org/resource/", "")[:-1]
-            p = str(p).replace("<http://dbpedia.org/ontology/", "")[:-1]
-            o = str(o).replace("<http://dbpedia.org/resource/", "")[:-1]
-            if self.idx_ent_dict.keys().__contains__(s) and self.idx_ent_dict.keys().__contains__(o):
-                idx_s, idx_p, idx_o, idx_t, label = self.idx_ent_dict[s], self.idx_rel_dict[p+"Of"], self.idx_ent_dict[o],self.idx_time_dict[time], label
-                if label == 'True':
-                    label = 1
-                else:
-                    label = 0
-                ver = k
-                #     this is to check if any time is same even after randomaly shuffling so increment by 1
-                if args.negative_triple_generation =="corrupted-time-based" and (k >= int(len_test/2)):
-                    item = self.idx_test_set.__getitem__(k-int(len_test/2))
-                    if ((item[0] != int(idx_s)) or (item[1] != int(idx_p)) or (item[2]!=int(idx_o))):
-                        print("serious problem, please check")
-                        exit(1)
-                    if ((item[0]==int(idx_s)) and (item[1]==int(idx_p)) and (item[2]==int(idx_o)) and (item[3]==int(idx_t))):
-                        idx_t = (int(idx_t) + 1) if ((int(idx_t)+1) < self.num_times) else 0
-                    ver = item[4]
-                self.idx_test_set.append([int(idx_s), int(idx_p), int(idx_o),int(idx_t), ver, label])
-            else:
-                print("check:" + s + "," + o)
-            k = k + 1
-
+            # self.idx_ent_dict = self.get_ids_dict(selected_dataset_data_dir+"entities")
+            # self.idx_rel_dict = self.get_ids_dict(selected_dataset_data_dir+"relations")
+            # self.idx_time_dict = self.get_ids_dict(selected_dataset_data_dir+"times")
+            self.emb_entities = self.get_embeddings( tmp_emb_folder + emb_typ + '/', 'entity.pkl')
+            self.emb_relation = self.get_embeddings( tmp_emb_folder + emb_typ + '/', 'relation.pkl')
+            self.emb_time = self.get_embeddings( tmp_emb_folder + emb_typ + '/', 'time.pkl')
+            self.num_entities = len(self.emb_entities)
+            self.num_relations = len(self.emb_relation)
+            self.num_times = len(self.emb_time)
+            self.idx_train_set = self.get_ids_dict(selected_dataset_data_dir+"train/train")
+            self.idx_test_set = self.get_ids_dict(selected_dataset_data_dir+"test/test")
+            self.idx_valid_set = self.get_ids_dict(selected_dataset_data_dir+"test/valid")
     def generate_negative_triples(self, data):
         data2 = []
         data_final = []
@@ -205,6 +247,21 @@ class Data:
         # data_final.append(data3)
         return data_final
 
+    def generate_only_true_triples(self, data):
+        data2 = []
+        data_final = []
+        i =0
+        times = []
+        for (s, p, o, time, label) in data:
+            if label == 'True\n':
+                label = label[:-1]
+            if label == 'True':
+                times.append(time)
+                data_final.append([s, p, o, time, label])
+            i = i + 1
+
+        # data_final.append(data3)
+        return data_final
 
     @staticmethod
     def get_veracity_data(self, train_emb):
@@ -216,23 +273,28 @@ class Data:
 
         return embeddings_train.values()
     @staticmethod
-    def update_and_match_triples_start(self, selected_dataset_data_dir, type, file_name, data_set1, data_set2, veracity = False):
+    def update_and_match_triples_start(self, selected_dataset_data_dir, type, file_name, data_set1, data_set2,  properties_split = None, veracity = False):
         if veracity==False:
             if (os.path.exists(selected_dataset_data_dir + type+ "/"+ file_name)):
                 self.set_time_final = list(self.load_data(selected_dataset_data_dir + type+"/", data_type=str(file_name).replace(".txt",""),pred=True))
             else:
-                self.set_time_final = self.update_match_triples(data_set1, data_set2)
-                self.save_triples(selected_dataset_data_dir, type+"/"+type, self.set_time_final)
+                if len(data_set1) != len(data_set2):
+                    self.set_time_final = self.update_match_triples(data_set1, data_set2)
+                else:
+                    self.set_time_final = data_set2
+                self.save_triples(selected_dataset_data_dir, type+"/"+file_name, self.set_time_final)
         else:
-            if (os.path.exists(selected_dataset_data_dir + type+ "/"+ file_name)):
-                self.set_time_final = list(self.load_data(selected_dataset_data_dir + type+"/", data_type=str(file_name).replace(".txt",""),pred=True))
+            tt = "properties/train/" if (file_name.__contains__("train")) else "properties/test/"
+            split = "" if (properties_split=='None') else tt+"correct/" +properties_split + "_"
+            if (os.path.exists(selected_dataset_data_dir + type+ "/"+ split+ file_name)):
+                self.set_time_final = list(self.load_data(selected_dataset_data_dir + type+"/"+split , data_type=str(file_name).replace(".txt",""),pred=True))
             else:
                 self.set_time_final = self.update_match_triples(data_set1, data_set2, veracity=veracity)
-                self.save_triples(selected_dataset_data_dir, type+"/"+file_name, self.set_time_final,veracity=veracity)
+                self.save_triples(selected_dataset_data_dir, type+"/"+split+file_name, self.set_time_final,veracity=veracity)
         return self.set_time_final
 
     def is_valid_test_available(self):
-        if len(self.valid_set) > 0 and len(self.test_set) > 0:
+        if len(self.idx_valid_set) > 0 and len(self.idx_test_set) > 0:
             return True
         return False
 
@@ -244,9 +306,9 @@ class Data:
     @staticmethod
     def save_triples(data_dir,type, triples,veracity=False):
         if veracity==False:
-            with open(data_dir + type+'_with_time_final.txt', "w") as f:
+            with open(data_dir + type, "w") as f:
                 for item in triples:
-                    f.write(""+str(item[0])+"\t"+str(item[1])+"\t"+str(item[2])+"\t"+str(item[3])+"\t"+str(item[4])+"\n")
+                    f.write(""+(item[0])+"\t"+(item[1])+"\t"+(item[2])+"\t"+str(item[3])+"\t"+str(item[4])+"\n")
         else:
             with open(data_dir + type, "w") as f:
                 for item in triples:
@@ -278,15 +340,25 @@ class Data:
         return  test_data, valid_data
     def get_ids_dict(self, dict_file_path):
         ids_dict = dict()
-        with open("%s.dict" % (dict_file_path), "r") as f:
+        data = []
+        with open("%s" % (dict_file_path), "r") as f:
             for datapoint in f:
                 datapoint = datapoint.split()
                 if len(datapoint) == 2:
                     ids_dict[datapoint[1]] = datapoint[0]
+                elif len(datapoint)==5:
+                    arr = []
+                    for tt in datapoint:
+                        arr.append(int(tt))
+                    arr.append(True)
+                    data.append(arr)
                 else:
                     print("invalid format")
                     exit(1)
-        return ids_dict
+        if len(ids_dict) > 0:
+            return ids_dict
+        else:
+            return data
     @staticmethod
     def load_data(data_dir, data_type, pred=False):
         try:
@@ -294,7 +366,7 @@ class Data:
             if pred == False:
                 with open("%s%s.txt" % (data_dir, data_type), "r") as f:
                     for datapoint in f:
-                        datapoint = datapoint.split()
+                        datapoint = datapoint.split("\t")
                         if len(datapoint) == 4:
                             s, p, o, label = datapoint
                             if label == 'True':
@@ -323,7 +395,7 @@ class Data:
             else:
                 with open("%s%s.txt" % (data_dir, data_type), "r") as f:
                     for datapoint in f:
-                        datapoint = datapoint.split()
+                        datapoint = datapoint.split('\t')
                         if len(datapoint) == 4:
                             s, p, o, label = datapoint
                             data.append((s, p, o, label))
@@ -439,22 +511,25 @@ class Data:
         return data
 
     @staticmethod
-    def load_data_with_time(data_dir, data_type, mapped_entities):
+    def load_data_with_time(data_dir, data_type, mapped_entities=None, prop = None):
         try:
             data = []
             with open("%s%s.txt" % (data_dir, data_type), "r") as f:
                 for datapoint in f:
-                    datapoint = datapoint.split()
-                    if len(datapoint) == 5:
-                        s, p, o, time, loc = datapoint
+                    datapoint = datapoint.split("\t")
+                    if len(datapoint) >= 5:
+                        if len(datapoint) >5:
+                            datapoint[5] = '_'.join(datapoint[4:])
+                        s, p, o, time, loc = datapoint[0:5]
+                        if prop!=None:
+                            if not str(p).__eq__(prop+"Of"):
+                                continue
                         s = "http://dbpedia.org/resource/" + s
-                        if s.__contains__("http://dbpedia.org/resource/Abdur_Razzaq"):
-                            print("testt.....asadjkl;afk")
-                        if s in mapped_entities.keys():
+                        if (mapped_entities!=None and s in mapped_entities.keys()):
                             s = mapped_entities[s]
                         p = "http://dbpedia.org/ontology/" + p
                         o = "http://dbpedia.org/resource/" + o
-                        if o in mapped_entities.keys():
+                        if (mapped_entities!=None and o in mapped_entities.keys()):
                             o = mapped_entities[o]
                         data.append(("<" + s + ">", "<" + p + ">", "<" + o + ">", time, "True"))
                     elif len(datapoint) == 3:
@@ -488,7 +563,7 @@ class Data:
         return times
     # / home / umair / Documents / pythonProjects / HybridFactChecking / Embeddings / ConEx_dbpedia
     @staticmethod
-    def get_embeddings(idxs,path,name):
+    def get_embeddings(path,name):
         # embeddings = dict()
         # print("%s%s.txt" % (path,name))
         embd = torch.load("%s%s" % (path,name),map_location=torch.device('cpu'))

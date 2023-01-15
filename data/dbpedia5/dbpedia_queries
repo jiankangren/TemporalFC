@@ -1,0 +1,412 @@
+PREFIX dbo: <http://dbpedia.org/ontology/>
+select DISTINCT ?o (dbo:architect as ?p) ?s (MAX(year(xsd:dateTime(?t))) as ?t)
+where
+{
+?s ?p ?o.
+?s dbo:architect ?o.
+?s dbo:openingDate ?t .
+}
+GROUP BY ?s ?p ?o
+
+
+# Producer with time
+
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dbp: <http://dbpedia.org/property/>
+prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+prefix owl: <http://www.w3.org/2002/07/owl#>
+prefix xml: <https://www.w3.org/2001/XMLSchema#>
+select  DISTINCT ?object (dbo:producer as ?predicate) ?subject (MAX(year(xsd:dateTime(?releaseDate))) as ?releaseDate)
+where
+{
+?subject ?predicate ?object.
+?subject dbo:producer ?object.
+?subject dbo:releaseDate ?releaseDate .
+  FILTER(STRSTARTS(STR(?subject), "http://dbpedia.org/resource/")).
+  FILTER(STRSTARTS(STR(?object), "http://dbpedia.org/resource/")).
+}
+GROUP BY ?subject ?predicate ?object
+
+
+# Producer with time and location -> Producer
+
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dbp: <http://dbpedia.org/property/>
+PREFIX dbr: <http://dbpedia.org/resource/>
+prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+prefix owl: <http://www.w3.org/2002/07/owl#>
+prefix xml: <https://www.w3.org/2001/XMLSchema#>
+select  DISTINCT ?object (dbo:producer as ?predicate) ?subject (MIN(?res) as ?releaseDate) ?loc
+where
+{
+?subject ?predicate ?object.
+{
+?subject dbp:producer  ?object.
+}
+UNION
+{
+?subject dbo:producer  ?object.
+}
+UNION
+{
+?subject dbr:producer  ?object.
+}
+
+{
+?subject dbp:released  ?time.
+}
+UNION
+{
+?subject dbo:releaseDate  ?time.
+}
+
+{
+?subject dbp:country  ?loc.
+}
+UNION
+{
+?subject dbo:country  ?loc.
+}
+
+FILTER(datatype(?time) = xsd:integer || datatype(?time) = xsd:date).
+  FILTER(STRSTARTS(STR(?subject), "http://dbpedia.org/resource/")).
+  FILTER(STRSTARTS(STR(?object), "http://dbpedia.org/resource/")).
+
+BIND (IF(datatype(?time) = xsd:integer, ?time  AS ?res, year(?time)) AS ?res)
+}
+GROUP BY ?subject ?predicate ?object ?loc
+LIMIT 10000 OFFSET 0
+
+
+# Architect with time and location  -> final
+
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dbp: <http://dbpedia.org/property/>
+PREFIX dbr: <http://dbpedia.org/resource/>
+prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+prefix owl: <http://www.w3.org/2002/07/owl#>
+prefix xml: <https://www.w3.org/2001/XMLSchema#>
+select  DISTINCT ?object (dbo:architect as ?predicate) ?subject (MAX(year(xsd:dateTime(?releaseDate))) as ?releaseDate) ?location
+where
+{
+?subject ?predicate ?object.
+
+{
+?subject dbp:architect  ?object.
+}
+UNION
+{
+?subject dbo:architect  ?object.
+}
+UNION
+{
+?subject dbr:architect  ?object.
+}
+
+?subject dbo:openingDate ?releaseDate .
+{
+?subject dbp:location  ?location.
+}
+UNION
+{
+?subject dbo:location  ?location.
+}
+
+FILTER(STRSTARTS(STR(?subject), "http://dbpedia.org/resource/")).
+FILTER(STRSTARTS(STR(?object), "http://dbpedia.org/resource/")).
+FILTER (!isNumeric(?location)).
+}GROUP BY ?subject ?predicate ?object ?location
+
+//////////////////////////////////////////////////
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dbp: <http://dbpedia.org/property/>
+PREFIX dbr: <http://dbpedia.org/resource/>
+prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+prefix owl: <http://www.w3.org/2002/07/owl#>
+prefix xml: <https://www.w3.org/2001/XMLSchema#>
+select  DISTINCT ?object   (dbo:architect as ?predicate)  ?subject  (MIN(?res) as ?releaseDate) ?country
+where
+{
+{ ?subject dbp:architect  ?object. }
+UNION
+{ ?subject dbo:architect  ?object. }
+UNION
+{ ?subject dbr:architect  ?object. }
+
+{?subject dbp:location  ?country. }
+UNION
+{ ?subject dbo:location  ?country. }
+
+{ ?subject dbp:openingDate  ?time. }
+UNION
+{ ?subject  dbo:openingDate  ?time. }
+
+  FILTER(datatype(?time) = xsd:integer || datatype(?time) = xsd:date).
+  FILTER(STRSTARTS(STR(?subject), "http://dbpedia.org/resource/")).
+  FILTER(STRSTARTS(STR(?object), "http://dbpedia.org/resource/")).
+
+BIND (IF(datatype(?time) = xsd:integer, ?time  AS ?res, year(?time)) AS ?res)
+}
+GROUP BY  ?subject   ?object ?country
+LIMIT 10000 OFFSET 0
+
+
+
+
+# director
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dbp: <http://dbpedia.org/property/>
+prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+prefix owl: <http://www.w3.org/2002/07/owl#>
+prefix xml: <https://www.w3.org/2001/XMLSchema#>
+select  DISTINCT ?object (dbo:director as ?predicate) ?subject  (MAX(?res) as ?releaseDate) ?country
+where
+{
+?subject ?predicate ?object.
+?subject dbo:director ?object.
+{
+?subject dbp:country  ?country.
+}
+UNION
+{
+?subject dbo:country  ?country.
+}
+
+{
+?subject dbp:released  ?time.
+}
+UNION
+{
+?subject dbo:releaseDate  ?time.
+}
+  FILTER(datatype(?time) = xsd:integer || datatype(?time) = xsd:date).
+  FILTER(STRSTARTS(STR(?subject), "http://dbpedia.org/resource/")).
+  FILTER(STRSTARTS(STR(?object), "http://dbpedia.org/resource/")).
+
+BIND (IF(datatype(?time) = xsd:integer, ?time  AS ?res, year(?time)) AS ?res)
+}
+GROUP BY ?subject ?predicate ?object ?country
+
+
+
+
+# director time and location
+
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dbp: <http://dbpedia.org/property/>
+prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+prefix owl: <http://www.w3.org/2002/07/owl#>
+prefix xml: <https://www.w3.org/2001/XMLSchema#>
+select  DISTINCT ?object (dbo:director as ?predicate) ?subject  (MIN(?res) as ?releaseDate) ?country
+where
+{
+?subject ?predicate ?object.
+?subject dbo:director ?object.
+{
+?subject dbp:country  ?country.
+}
+UNION
+{
+?subject dbo:country  ?country.
+}
+{
+?subject dbp:released  ?time.
+}
+UNION
+{
+?subject dbo:releaseDate  ?time.
+}
+  FILTER(datatype(?time) = xsd:integer || datatype(?time) = xsd:date).
+  FILTER(STRSTARTS(STR(?subject), "http://dbpedia.org/resource/")).
+  FILTER(STRSTARTS(STR(?object), "http://dbpedia.org/resource/")).
+
+BIND (IF(datatype(?time) = xsd:integer, ?time  AS ?res, year(?time)) AS ?res)
+}
+GROUP BY ?subject ?predicate ?object ?country
+LIMIT 10000 OFFSET 0
+
+
+# musicComposer time and location
+
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dbp: <http://dbpedia.org/property/>
+PREFIX dbr: <http://dbpedia.org/resource/>
+prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+prefix owl: <http://www.w3.org/2002/07/owl#>
+prefix xml: <https://www.w3.org/2001/XMLSchema#>
+select  DISTINCT ?object (dbo:musicComposer as ?predicate) ?subject  (MIN(?res) as ?releaseDate) ?country
+where
+{
+?subject ?predicate ?object.
+{
+?subject dbp:musicComposer  ?object.
+}
+UNION
+{
+?subject dbo:musicComposer  ?object.
+}
+UNION
+{
+?subject dbr:musicComposer  ?object.
+}
+
+{
+?subject dbp:country  ?country.
+}
+UNION
+{
+?subject dbo:country  ?country.
+}
+{
+?subject dbp:released  ?time.
+}
+UNION
+{
+?subject dbo:releaseDate  ?time.
+}
+  FILTER(datatype(?time) = xsd:integer || datatype(?time) = xsd:date).
+  FILTER(STRSTARTS(STR(?subject), "http://dbpedia.org/resource/")).
+  FILTER(STRSTARTS(STR(?object), "http://dbpedia.org/resource/")).
+
+BIND (IF(datatype(?time) = xsd:integer, ?time  AS ?res, year(?time)) AS ?res)
+}
+GROUP BY ?subject ?predicate ?object ?country
+LIMIT 10000 OFFSET 0
+
+
+
+
+
+
+# author time and location
+
+
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dbp: <http://dbpedia.org/property/>
+PREFIX dbr: <http://dbpedia.org/resource/>
+prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+prefix owl: <http://www.w3.org/2002/07/owl#>
+prefix xml: <https://www.w3.org/2001/XMLSchema#>
+select  DISTINCT ?object (dbo:author as ?predicate) ?subject  (MIN(?res) as ?releaseDate) ?country
+where
+{
+?subject ?predicate ?object.
+
+{ ?subject dbp:author  ?object. }
+UNION
+{ ?subject dbo:author  ?object. }
+UNION
+{ ?subject dbr:author  ?object. }
+
+{ ?subject dbp:country  ?country. }
+UNION
+{ ?subject dbo:country  ?country. }
+
+{ ?subject dbp:released  ?time. }
+UNION
+{ ?subject dbo:released  ?time. }
+UNION
+{ ?subject dbo:releaseDate  ?time. }
+UNION
+{ ?subject dbp:releaseDate  ?time. }
+
+  FILTER(datatype(?time) = xsd:integer || datatype(?time) = xsd:date).
+  FILTER(STRSTARTS(STR(?subject), "http://dbpedia.org/resource/")).
+  FILTER(STRSTARTS(STR(?object), "http://dbpedia.org/resource/")).
+
+BIND (IF(datatype(?time) = xsd:integer, ?time  AS ?res, year(?time)) AS ?res)
+}
+GROUP BY ?subject ?predicate ?object ?country
+LIMIT 10000 OFFSET 40000
+
+
+
+
+# artist time and location
+
+
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dbp: <http://dbpedia.org/property/>
+PREFIX dbr: <http://dbpedia.org/resource/>
+prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+prefix owl: <http://www.w3.org/2002/07/owl#>
+prefix xml: <https://www.w3.org/2001/XMLSchema#>
+select  DISTINCT ?object (dbo:artist as ?predicate) ?subject  (MIN(?res) as ?releaseDate) ?country
+where
+{
+?subject ?predicate ?object.
+
+{ ?subject dbp:artist  ?object. }
+UNION
+{ ?subject dbo:artist  ?object. }
+UNION
+{ ?subject dbr:artist  ?object. }
+
+{ ?subject dbp:country  ?country. }
+UNION
+{ ?subject dbo:country  ?country. }
+
+{ ?subject dbp:released  ?time. }
+UNION
+{ ?subject dbo:released  ?time. }
+UNION
+{ ?subject dbo:releaseDate  ?time. }
+UNION
+{ ?subject dbp:releaseDate  ?time. }
+
+  FILTER(datatype(?time) = xsd:integer || datatype(?time) = xsd:date).
+  FILTER(STRSTARTS(STR(?subject), "http://dbpedia.org/resource/")).
+  FILTER(STRSTARTS(STR(?object), "http://dbpedia.org/resource/")).
+
+BIND (IF(datatype(?time) = xsd:integer, ?time  AS ?res, year(?time)) AS ?res)
+}
+GROUP BY ?subject ?predicate ?object ?country
+LIMIT 10000 OFFSET 0
+
+
+
+
+# commander time and location
+
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dbp: <http://dbpedia.org/property/>
+PREFIX dbr: <http://dbpedia.org/resource/>
+prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+prefix owl: <http://www.w3.org/2002/07/owl#>
+prefix xml: <https://www.w3.org/2001/XMLSchema#>
+select  DISTINCT ?object   (dbo:commander as ?predicate)  ?subject  (MIN(?res) as ?releaseDate) ?country
+where
+{
+{ ?subject dbp:commander  ?object. }
+UNION
+{ ?subject dbo:commander  ?object. }
+UNION
+{ ?subject dbr:commander  ?object. }
+
+{?subject dbp:place  ?country. }
+UNION
+{ ?subject dbo:place  ?country. }
+
+{ ?subject dbp:date  ?time. }
+UNION
+{ ?subject  dbo:date  ?time. }
+
+  FILTER(datatype(?time) = xsd:integer || datatype(?time) = xsd:date).
+  FILTER(STRSTARTS(STR(?subject), "http://dbpedia.org/resource/")).
+  FILTER(STRSTARTS(STR(?object), "http://dbpedia.org/resource/")).
+
+BIND (IF(datatype(?time) = xsd:integer, ?time  AS ?res, year(?time)) AS ?res)
+}
+GROUP BY  ?subject   ?object ?country
+LIMIT 10000 OFFSET 0
+

@@ -20,15 +20,27 @@ np.random.seed(42)
 torch.manual_seed(42)
 torch.cuda.manual_seed_all(42)
 
+from sklearn.metrics import make_scorer
 
+
+from scipy.spatial.distance import cosine
 
 
 class BaseKGE(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, args):
         super().__init__()
         self.name = 'Not init'
-        self.loss = nn.BCELoss()
-        # self.model = model
+
+        # added by umair to make time embeddings as a label...todo-> find a solution to move it in main class
+        self.embedding_dim = args.embedding_dim
+        self.tim_embeddings = args.dataset.emb_time
+        self.num_times = args.num_times
+        for i, word in enumerate(self.tim_embeddings):
+            self.embedding_dim_tim = len(word)
+            break
+        self.time_embeddings = nn.Embedding(self.num_times, self.embedding_dim_tim)
+        self.time_embeddings.load_state_dict({'weight': torch.tensor(self.convrt_embeddings(args.num_times, self.embedding_dim_tim, self.tim_embeddings))})
+
 
     def convrt_embeddings(self,num_entities,embedding_dim,embeddings):
         weights_matrix = np.zeros((num_entities, embedding_dim))
@@ -65,19 +77,23 @@ class BaseKGE(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         idx_s, idx_p, idx_o, t_data, v_data, label = batch[0], batch[1], batch[2], batch[3], batch[4], batch[5]
         # Label conversion
-        label = label.float()
+        label = t_data
+        # label = self.time_embeddings(t_data)
         # 2. Forward pass
-        pred = self.forward_triples(idx_s, idx_p, idx_o, t_data, v_data, "training").flatten()
+        pred = self.forward_triples(idx_s, idx_p, idx_o, t_data, v_data, "training")
         # 3. Compute Loss
         loss = self.loss_function(pred, label)
         # applying L2 regularization here
         # Replaces pow(2.0) with abs() for L1 regularization
         l2_lambda = 0.001
-        l2_norm = sum(p.abs().sum()
+        l2_norm = sum(p.pow(2.0).sum()
                       for p in self.parameters())
 
         loss = loss + l2_lambda * l2_norm
-        train_accuracy = accuracy(pred, label.int())
+        # preds2 = self.get_min_cosine_similarity(label, pred)
+        # targets = self.get_target_indices(label, minn)
+        # train_accuracy = accuracy(torch.LongTensor(preds2), t_data)
+        train_accuracy = accuracy(pred, label)
         return {'acc': train_accuracy, 'loss': loss}
 
     def training_epoch_end(self, outputs) -> None:
@@ -90,19 +106,24 @@ class BaseKGE(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         idx_s, idx_p, idx_o, t_data, v_data, label = batch[0], batch[1], batch[2], batch[3], batch[4], batch[5]
         # Label conversion
-        label = label.float()
+        label = t_data
+        # label = self.time_embeddings(t_data)
         # 2. Forward pass
-        pred = self.forward_triples(idx_s, idx_p, idx_o, t_data, v_data, "valid").flatten()
+        pred = self.forward_triples(idx_s, idx_p, idx_o, t_data, v_data, "valid")
+
 
         # Find the Loss
         loss = self.loss_function(pred, label)
         # applying L2 regularization here
         l2_lambda = 0.001
-        l2_norm = sum(p.abs().sum()
+        l2_norm = sum(p.pow(2.0).sum()
                       for p in self.parameters())
 
         loss = loss + l2_lambda * l2_norm
-        val_accuracy = accuracy(pred, label.int())
+        # preds2 = self.get_min_cosine_similarity2(label.numpy(), pred.numpy())
+        # targets = self.get_target_indices(label, minn)
+        val_accuracy = accuracy(pred, label)
+
         return {'val_acc': val_accuracy, 'val_loss': loss}
 
     def validation_epoch_end(self, outputs: List[Any]) -> None:
@@ -114,11 +135,16 @@ class BaseKGE(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         idx_s, idx_p, idx_o, t_data, v_data, label = batch[0], batch[1], batch[2], batch[3], batch[4], batch[5]
         # Label conversion
-        label = label.float()
+        label = t_data
+        # label = self.time_embeddings(t_data)
         # 2. Forward pass
-        pred = self.forward_triples(idx_s, idx_p, idx_o, t_data, v_data, "test").flatten()
+        pred = self.forward_triples(idx_s, idx_p, idx_o, t_data, v_data, "test")
 
-        test_accuracy = accuracy(pred, label.int())
+        # test_accuracy = accuracy(pred, label)
+        # preds2 = self.get_min_cosine_similarity(label, pred)
+        # targets = self.get_target_indices(label, minn)
+        test_accuracy = accuracy(pred, label)
+
         return {'test_accuracy': test_accuracy}
 
     def test_epoch_end(self, outputs: List[Any]):
