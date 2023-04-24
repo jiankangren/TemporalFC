@@ -8,9 +8,9 @@ This open-source project contains the Python implementation of time predication 
 3. [Elastic-search](https://www.elastic.co/blog/loading-wikipedia) to load text corpus (wikipedia) on elastic search for text-based component, and
 4. [Path-based-approach](https://github.com/dice-group/COPAAL/tree/develop) to calculate output score for the path-based component.
 
-This project consists of 2 independent parts:
-1. [Fact-checking](https://github.com/factcheckerr/TemporalFC-FC-part) part.
-2. [Time-point prediction](https://github.com/factcheckerr/TemporalFC) part.
+This project consists of 2 independent components:
+1. [Fact-checking](https://github.com/factcheckerr/TemporalFC-FC-part) component.
+2. [Time-point prediction](https://github.com/factcheckerr/TemporalFC) component.
 
 
 ## Installation
